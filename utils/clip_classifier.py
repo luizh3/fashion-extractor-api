@@ -53,11 +53,12 @@ class CLIPClassifier:
             (20, "Cinto", "belt", "waist"),
             (21, "Bolsa", "bag", "accessory"),
             (22, "Mochila", "backpack", "accessory"),
+            (23, "Tênis", "sneakers", "feet"),
             # Categorias para ausência de peça
-            (23, "Sem roupa no torso", "bare torso", "torso"),
-            (24, "Sem roupa nas pernas", "bare legs", "legs"),
-            (25, "Descalço", "bare feet", "feet"),
-            (26, "Cabeça descoberta", "bare head", "head")
+            (24, "Sem roupa no torso", "bare torso", "torso"),
+            (25, "Sem roupa nas pernas", "bare legs", "legs"),
+            (26, "Descalço", "bare feet", "feet"),
+            (27, "Cabeça descoberta", "bare head", "head")
         ]
         
         # Extrai apenas os prompts em inglês para o modelo CLIP
@@ -67,7 +68,7 @@ class CLIPClassifier:
         self.body_regions = {
             "torso": ["t-shirt", "jacket", "blouse", "sweater", "hoodie", "coat", "suit"],
             "legs": ["pants", "shorts", "skirt"],
-            "feet": ["socks", "shoes", "boots", "sandals"],
+            "feet": ["socks", "shoes", "boots", "sandals", "sneakers"],
             "head": ["hat", "cap"],
             "neck": ["scarf"],
             "hands": ["gloves"],
