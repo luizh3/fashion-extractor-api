@@ -4,11 +4,16 @@ Uma API REST para classificação de roupas e detecção de partes do corpo usan
 
 ## 🚀 Funcionalidades
 
-- **Classificação de roupas**: Identifica 7 categorias diferentes (camiseta, calça, shorts, vestido, jaqueta, blusa, saia)
+- **Classificação de roupas**: Identifica 23 categorias diferentes de roupas e acessórios
 - **Detecção de partes do corpo**: Identifica torso, pernas e pés usando MediaPipe Pose
 - **Detecção de pessoas**: Usa YOLOv8 para detectar pessoas na imagem
 - **Extração de partes**: Extrai imagens específicas de partes do corpo
 - **Análise completa**: Combina classificação de roupas e detecção de partes
+- **🆕 Compatibilidade de roupas**: Sugere itens que combinam com peças selecionadas
+- **🆕 Sugestões de outfit**: Completa outfits baseado em itens já escolhidos
+- **🆕 Categorização por região**: Organiza roupas por região do corpo (torso, legs, feet, etc.)
+- **🆕 Compatibilidade com cores**: Sugere itens baseado em cores específicas
+- **🆕 Combinação item + cor**: Considera tanto o tipo de roupa quanto a cor
 - **Múltiplos formatos de entrada**: Suporte para upload de arquivo e base64
 - **Resposta JSON estruturada**: Dados organizados e fáceis de processar
 - **Documentação automática**: Swagger UI integrado
@@ -161,6 +166,94 @@ Acesse `http://localhost:8000/docs` para ver a documentação Swagger UI
 - **GET** `/api/v1/static/body-parts/{filename}`
 - **Retorna**: Imagem da parte do corpo salva
 
+### 7. 🆕 Compatibilidade de Roupas
+
+#### Buscar itens compatíveis
+- **POST** `/api/v1/clothing/compatible-items`
+- **Content-Type**: `application/json`
+- **Body**: 
+```json
+{
+  "selected_item": {
+    "prompt": "t-shirt",
+    "body_region": "torso",
+    "name": "Camiseta",
+    "color": "red"  # opcional - cor do item
+  },
+  "target_regions": ["legs", "feet"],
+  "top_k": 5
+}
+```
+- **Retorna**: Sugestões de itens compatíveis por região. Se o item selecionado tiver uma cor, as sugestões incluirão cores compatíveis para cada item.
+
+**Exemplo de resposta com cores:**
+```json
+{
+  "selected_item": {
+    "prompt": "t-shirt",
+    "body_region": "torso",
+    "name": "Camiseta",
+    "color": "red"
+  },
+  "suggestions": {
+    "legs": [
+      {
+        "category": "pants",
+        "name": "Calça",
+        "prompt": "pants",
+        "body_region": "legs",
+        "similarity": 0.85,
+        "compatible_colors": [
+          {"color": "blue", "similarity": 0.92},
+          {"color": "black", "similarity": 0.88},
+          {"color": "white", "similarity": 0.85}
+        ]
+      }
+    ]
+  }
+}
+```
+
+#### Buscar compatibilidade por cor
+- **POST** `/api/v1/clothing/color-compatibility`
+- **Content-Type**: `application/json`
+- **Body**:
+```json
+{
+  "color": "red",
+  "target_regions": ["torso", "legs"],  # opcional
+  "top_k": 5
+}
+```
+- **Retorna**: Sugestões de itens que combinam com a cor
+
+#### Sugestões de outfit completo
+- **POST** `/api/v1/clothing/outfit-suggestions`
+- **Content-Type**: `application/json`
+- **Body**:
+```json
+{
+  "selected_items": [
+    {
+      "prompt": "pants",
+      "body_region": "legs",
+      "name": "Calça",
+      "probability": 0.92
+    }
+  ],
+  "top_k": 3
+}
+```
+- **Retorna**: Sugestões para completar o outfit
+
+#### Regiões do corpo disponíveis
+- **GET** `/api/v1/clothing/body-regions`
+- **Retorna**: Mapeamento de regiões do corpo e suas categorias
+
+#### Cores disponíveis
+- **GET** `/api/v1/clothing/colors`
+- **Retorna**: Lista de cores disponíveis para compatibilidade
+
 ## 📊 Exemplos de Resposta
 
 ### Classificação de Roupas
@@ -194,35 +287,33 @@ Acesse `http://localhost:8000/docs` para ver a documentação Swagger UI
 ```
 
 ### Categorias Disponíveis
-A API usa categorias padronizadas em inglês maiúsculo para identificação pelo cliente:
+A API usa categorias padronizadas com informações de região do corpo:
 
-| Category | Name (PT) | Description |
-|----------|-----------|-------------|
-| `TSHIRT` | Camiseta | T-shirts e camisetas |
-| `PANTS` | Calça | Calças e jeans |
-| `SHORTS` | Shorts | Shorts e bermudas |
-| `DRESS` | Vestido | Vestidos |
-| `JACKET` | Jaqueta | Jaquetas e blazers |
-| `BLOUSE` | Blusa | Blusas femininas |
-| `SKIRT` | Saia | Saias |
-| `SWEATER` | Suéter | Suéteres e pulôveres |
-| `HOODIE` | Moletom | Moletons com capuz |
-| `COAT` | Casaco | Casacos pesados |
-| `SUIT` | Terno | Ternos e trajes |
-| `UNIFORM` | Uniforme | Uniformes |
-| `SWIMSUIT` | Maiô | Maiôs e sungas |
-| `UNDERWEAR` | Roupa Íntima | Roupas íntimas |
-| `SOCKS` | Meias | Meias e meias-calças |
-| `SHOES` | Sapatos | Sapatos e tênis |
-| `BOOTS` | Botas | Botas |
-| `SANDALS` | Sandálias | Sandálias |
-| `HAT` | Chapéu | Chapéus |
-| `CAP` | Boné | Bonés |
-| `SCARF` | Cachecol | Cachecóis |
-| `GLOVES` | Luvas | Luvas |
-| `BELT` | Cinto | Cintos |
-| `BAG` | Bolsa | Bolsas |
-| `BACKPACK` | Mochila | Mochilas |
+| Category | Name (PT) | Prompt (EN) | Body Region |
+|----------|-----------|-------------|-------------|
+| 0 | Camiseta | t-shirt | torso |
+| 1 | Calça | pants | legs |
+| 2 | Shorts | shorts | legs |
+| 3 | Jaqueta | jacket | torso |
+| 4 | Blusa | blouse | torso |
+| 5 | Saia | skirt | legs |
+| 6 | Suéter | sweater | torso |
+| 7 | Moletom | hoodie | torso |
+| 8 | Casaco | coat | torso |
+| 9 | Terno | suit | torso |
+| 10 | Maiô | swimsuit | full_body |
+| 11 | Roupa Íntima | underwear | underwear |
+| 12 | Meias | socks | feet |
+| 13 | Sapatos | shoes | feet |
+| 14 | Botas | boots | feet |
+| 15 | Sandálias | sandals | feet |
+| 16 | Chapéu | hat | head |
+| 17 | Boné | cap | head |
+| 18 | Cachecol | scarf | neck |
+| 19 | Luvas | gloves | hands |
+| 20 | Cinto | belt | waist |
+| 21 | Bolsa | bag | accessory |
+| 22 | Mochila | backpack | accessory |
 
 ### Detecção de Partes do Corpo
 ```json
@@ -480,105 +571,289 @@ curl -X PUT "http://localhost:8000/api/v1/config/margin" \
 curl "http://localhost:8000/api/v1/static/body-parts/torso_abc123.jpg"
 ```
 
-## 🔧 Configuração
+### 6. 🆕 Análise Completa com Compatibilidade
 
-### Variáveis de ambiente (opcional)
-- `PORT`: Porta da API (padrão: 8000)
-- `HOST`: Host da API (padrão: 0.0.0.0)
+```python
+# Upload de imagem para análise completa
+with open("outfit.jpg", "rb") as image_file:
+    files = {"file": ("outfit.jpg", image_file, "image/jpeg")}
+    
+    response = requests.post(
+        "http://localhost:8000/api/v1/analysis/complete",
+        files=files
+    )
 
-### Categorias de roupas suportadas
-- camiseta
-- calça
-- shorts
-- vestido
-- jaqueta
-- blusa
-- saia
+result = response.json()
 
-### Partes do corpo detectadas
-- torso
-- legs (pernas)
-- feet (pés)
+# Resultados incluem:
+# - Classificação de cada parte do corpo
+# - Análise de compatibilidade entre as peças
+# - Score geral do outfit
+# - Sugestões de melhoria
 
-## 📁 **Nova Estrutura de Arquivos**
-```
-clip/
-├── api.py                    # Arquivo principal (113 linhas vs 567 antes!)
-├── routers/                  # Módulos de endpoints
-│   ├── __init__.py
-│   ├── clothing.py          # Endpoints de classificação de roupas
-│   ├── body_parts.py        # Endpoints de detecção de partes do corpo
-│   ├── analysis.py          # Endpoints de análise completa
-│   ├── config.py            # Endpoints de configuração
-│   └── static_files.py      # Endpoints de arquivos estáticos
-├── utils/                    # Utilitários e módulos principais
-│   ├── __init__.py
-│   ├── image_utils.py       # Funções de processamento de imagem
-│   ├── clip_classifier.py   # Módulo de classificação CLIP
-│   ├── body_parts_detector.py # Módulo de detecção de partes do corpo
-│   └── parts_separator.py   # Módulo de separação de partes (legacy)
-├── static/                   # Arquivos estáticos salvos
-├── test_images/             # Imagens para testes
-└── ... (outros arquivos)
+print("Score de compatibilidade:", result["outfit_compatibility"]["compatibility_score"])
+print("Avaliação:", result["outfit_compatibility"]["outfit_rating"]["level"])
 ```
 
-## 🐛 Solução de Problemas
+**Exemplo de resposta com compatibilidade:**
+```json
+{
+  "success": true,
+  "classifications": {
+    "torso": {
+      "top_prediction": {
+        "name": "Camiseta",
+        "prompt": "t-shirt",
+        "probability": 0.85
+      }
+    },
+    "legs": {
+      "top_prediction": {
+        "name": "Calça", 
+        "prompt": "pants",
+        "probability": 0.92
+      }
+    },
+    "feet": {
+      "top_prediction": {
+        "name": "Sapatos",
+        "prompt": "shoes", 
+        "probability": 0.78
+      }
+    }
+  },
+  "outfit_compatibility": {
+    "compatibility_score": 0.76,
+    "outfit_rating": {
+      "level": "Bom",
+      "emoji": "👍",
+      "description": "Outfit bem combinado. As peças funcionam bem juntas."
+    },
+    "pairwise_compatibility": {
+      "torso_vs_legs": {
+        "part1": {"region": "torso", "name": "Camiseta"},
+        "part2": {"region": "legs", "name": "Calça"},
+        "similarity": 0.82,
+        "compatibility_level": "Excelente"
+      },
+      "torso_vs_feet": {
+        "part1": {"region": "torso", "name": "Camiseta"},
+        "part2": {"region": "feet", "name": "Sapatos"},
+        "similarity": 0.71,
+        "compatibility_level": "Boa"
+      }
+    },
+    "suggestions": [
+      "Adicionar um Sapatos pode completar o look",
+      "Um Cinto pode complementar o outfit"
+    ]
+  }
+}
+```
 
-### Modelos não carregam
-- Verifique se o CUDA está disponível (se usando GPU)
-- Certifique-se de que todas as dependências estão instaladas
-- Para YOLO, o modelo será baixado automaticamente na primeira execução
+### 7. 🧪 Teste de Compatibilidade
 
-### Erro de memória
-- Use CPU em vez de GPU: modifique `device = "cpu"` no código
-- Reduza o tamanho das imagens antes do envio
-- Considere usar modelos menores (YOLOv8n já é o menor)
+```bash
+# Testar análise de compatibilidade
+python test_outfit_compatibility.py
 
-### Erro de formato de arquivo
-- Certifique-se de que o arquivo é uma imagem válida (JPG, PNG, etc.)
-- Verifique se o Content-Type está correto
+# Testar sugestões contextuais
+python test_contextual_suggestions.py
+```
 
-### Nenhuma pose detectada
-- Certifique-se de que há uma pessoa visível na imagem
-- A pessoa deve estar de corpo inteiro ou pelo menos com torso visível
-- Imagens muito pequenas podem não ser detectadas
+**Funcionalidades do teste:**
+- ✅ Upload de imagem com pessoa vestida
+- ✅ Detecção automática de partes do corpo
+- ✅ Classificação de cada peça
+- ✅ Análise de compatibilidade entre peças
+- ✅ Score geral do outfit
+- ✅ Sugestões contextuais inteligentes (baseadas no CLIP)
 
-## 🤝 Contribuição
+### 8. 🧠 Sugestões Contextuais Inteligentes
 
-1. Faça um fork do projeto
-2. Crie uma branch para sua feature
-3. Commit suas mudanças
-4. Push para a branch
-5. Abra um Pull Request
+O sistema agora gera sugestões **contextuais e inteligentes** usando o CLIP, em vez de sugestões fixas:
 
-## 📄 Licença
+#### **Antes (Sugestões Fixas):**
+- ❌ "Adicionar uma terceira peça pode melhorar o conjunto"
+- ❌ "O outfit está completo! Considere acessórios para complementar"
 
-Este projeto está sob a licença MIT. 
+#### **Agora (Sugestões Contextuais):**
+- ✅ "Adicionar um Sapatos pode completar o look" (quando faltam calçados)
+- ✅ "Um Cinto pode complementar o outfit" (para outfits formais)
+- ✅ "Um Boné pode complementar o outfit" (para outfits casuais)
 
-### Categorias de Roupas
+#### **Como funciona:**
+1. **Análise de Contexto**: Identifica peças detectadas e estilo
+2. **Compatibilidade CLIP**: Calcula similaridade entre peças existentes e sugestões
+3. **Sugestões Inteligentes**: Prioriza itens mais compatíveis semanticamente
+4. **Adaptação ao Estilo**: Diferencia entre formal e casual
 
-A API classifica roupas nas seguintes categorias (usando IDs numéricos):
+## 🎨 Cores Disponíveis
 
-- **0**: Camiseta
-- **1**: Calça  
-- **2**: Shorts
-- **3**: Jaqueta
-- **4**: Blusa
-- **5**: Saia
-- **6**: Suéter
-- **7**: Moletom
-- **8**: Casaco
-- **9**: Terno
-- **10**: Maiô
-- **11**: Roupa Íntima
-- **12**: Meias
-- **13**: Sapatos
-- **14**: Botas
-- **15**: Sandálias
-- **16**: Chapéu
-- **17**: Boné
-- **18**: Cachecol
-- **19**: Luvas
-- **20**: Cinto
-- **21**: Bolsa
-- **22**: Mochila 
+A API suporta 16 cores para compatibilidade:
+
+- **Cores básicas**: red, blue, green, yellow, black, white, gray, brown
+- **Cores vibrantes**: pink, purple, orange
+- **Cores neutras**: navy, beige, cream, maroon, olive
+
+### Como usar cores:
+
+1. **Buscar por cor**: `POST /color-compatibility` com `"color": "red"`
+2. **Item + cor**: `POST /compatible-items` com `"color": "red"`
+3. **Listar cores**: `GET /colors`
+
+## 🔧 Como funciona a compatibilidade com cores
+
+A funcionalidade de compatibilidade com cores usa **combinação de embeddings**:
+
+1. **Embeddings de cores**: Cada cor tem seu próprio embedding CLIP
+2. **Combinação inteligente**: 70% peso do item + 30% peso da cor
+3. **Similaridade híbrida**: Considera tanto o tipo de roupa quanto a cor
+4. **Contexto visual**: CLIP entende combinações de cores que fazem sentido
+
+### Vantagens desta abordagem:
+- ✅ **Contexto de cor**: Entende que vermelho combina com azul, preto, etc.
+- ✅ **Flexibilidade**: Funciona com qualquer combinação de item + cor
+- ✅ **Precisão**: Considera tanto estilo quanto cor
+- ✅ **Escalável**: Fácil adicionar novas cores
+
+## 🎯 Exemplos de Uso das Novas Funcionalidades
+
+### 1. Buscar itens compatíveis com uma calça
+
+```python
+import requests
+
+# Usuário selecionou uma calça
+selected_item = {
+    "prompt": "pants",
+    "body_region": "legs", 
+    "name": "Calça"
+}
+
+# Buscar itens compatíveis para torso e pés
+response = requests.post(
+    "http://localhost:8000/api/v1/clothing/compatible-items",
+    json={
+        "selected_item": selected_item,
+        "target_regions": ["torso", "feet"],
+        "top_k": 3
+    }
+)
+
+suggestions = response.json()
+print("Sugestões para torso:", suggestions["suggestions"]["torso"])
+print("Sugestões para pés:", suggestions["suggestions"]["feet"])
+```
+
+### 2. 🆕 Buscar itens que combinam com uma cor
+
+```python
+# Buscar itens que combinam com vermelho
+response = requests.post(
+    "http://localhost:8000/api/v1/clothing/color-compatibility",
+    json={
+        "color": "red",
+        "target_regions": ["torso", "legs"],
+        "top_k": 3
+    }
+)
+
+result = response.json()
+print("Itens que combinam com vermelho:", result["suggestions"])
+```
+
+### 3. 🆕 Item específico com cor
+
+```python
+# Camiseta vermelha - buscar itens compatíveis
+response = requests.post(
+    "http://localhost:8000/api/v1/clothing/compatible-items",
+    json={
+        "selected_item": {
+            "prompt": "t-shirt",
+            "body_region": "torso",
+            "name": "Camiseta",
+            "color": "red"  # Cor dentro do selected_item
+        },
+        "target_regions": ["legs", "feet"],
+        "top_k": 3
+    }
+)
+
+result = response.json()
+print("Itens compatíveis com camiseta vermelha:", result["suggestions"])
+```
+
+### 4. Completar um outfit
+
+```python
+# Usuário já tem calça e camiseta selecionadas
+selected_items = [
+    {
+        "prompt": "pants",
+        "body_region": "legs",
+        "name": "Calça",
+        "probability": 0.92
+    },
+    {
+        "prompt": "t-shirt", 
+        "body_region": "torso",
+        "name": "Camiseta",
+        "probability": 0.88
+    }
+]
+
+# Buscar sugestões para completar o outfit
+response = requests.post(
+    "http://localhost:8000/api/v1/clothing/outfit-suggestions",
+    json={
+        "selected_items": selected_items,
+        "top_k": 3
+    }
+)
+
+result = response.json()
+print("Regiões faltantes:", result["suggestions"]["missing_regions"])
+print("Sugestões para pés:", result["suggestions"]["suggestions"]["feet"])
+```
+
+### 5. 🆕 Fluxo completo com cores
+
+```python
+# 1. Usuário tem uma camiseta vermelha
+red_shirt = {
+    "prompt": "t-shirt",
+    "body_region": "torso",
+    "name": "Camiseta",
+    "color": "red"  # Cor dentro do item
+}
+
+# 2. Buscar itens que combinam com vermelho
+color_response = requests.post(
+    "http://localhost:8000/api/v1/clothing/color-compatibility",
+    json={
+        "color": "red",
+        "target_regions": ["legs", "feet"],
+        "top_k": 5
+    }
+)
+
+# 3. Usuário seleciona calça azul das sugestões
+blue_pants = {
+    "prompt": "pants",
+    "body_region": "legs",
+    "name": "Calça",
+    "color": "blue"  # Cor dentro do item
+}
+
+# 4. Buscar calçados considerando a combinação vermelho + azul
+outfit_response = requests.post(
+    "http://localhost:8000/api/v1/clothing/compatible-items",
+    json={
+        "selected_item": red_shirt,  # Mantém a cor vermelha
+        "target_regions": ["feet"],
+        "top_k": 3
+    }
+)
+``` 

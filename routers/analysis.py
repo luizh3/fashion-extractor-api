@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from typing import Dict
 
-from utils.clip_classifier import classify_clothing_image, get_device_info
+from utils.clip_classifier import classify_clothing_image, get_device_info, analyze_outfit_compatibility, analyze_complete_outfit_image, detect_clothing_color
 from utils.body_parts_detector import detect_body_parts_from_image, get_body_part_image
 from utils.image_utils import ensure_rgb_image
 
@@ -119,6 +119,10 @@ async def analyze_complete(file: UploadFile = File(...)):
                     logger.info(f"   Classificando...")
                     classifications, top_prediction = classify_clothing_image(part_image)
                     
+                    # Detectar cor da peça
+                    logger.info(f"   Detectando cor...")
+                    color_analysis = detect_clothing_color(part_image)
+                    
                     # Informações do arquivo salvo
                     saved_parts[part_name] = {
                         "filename": filename,
@@ -134,6 +138,7 @@ async def analyze_complete(file: UploadFile = File(...)):
                     classified_parts[part_name] = {
                         "predictions": classifications,
                         "top_prediction": top_prediction,
+                        "color_analysis": color_analysis,
                         "url": f"/api/v1/static/body-parts/{filename}"
                     }
                     
@@ -145,6 +150,16 @@ async def analyze_complete(file: UploadFile = File(...)):
                 continue
         
         logger.info(f"✅ Análise completa finalizada. {total_parts_saved} partes salvas.")
+        
+        # Analisar compatibilidade entre as peças detectadas
+        logger.info("🔄 Analisando compatibilidade do outfit...")
+        compatibility_analysis = analyze_outfit_compatibility(classified_parts)
+        logger.info(f"   Score de compatibilidade: {compatibility_analysis.get('compatibility_score', 0)}")
+        
+        # Analisar a imagem completa com CLIP
+        logger.info("🔄 Analisando outfit completo com CLIP...")
+        complete_outfit_analysis = analyze_complete_outfit_image(image, classified_parts)
+        logger.info(f"   Análise completa realizada com sucesso")
         
         # Resultado final
         result = {
@@ -162,10 +177,14 @@ async def analyze_complete(file: UploadFile = File(...)):
             },
             "saved_parts": saved_parts,
             "classifications": classified_parts,
+            "outfit_compatibility": compatibility_analysis,
+            "complete_outfit_analysis": complete_outfit_analysis,
             "summary": {
                 "total_parts_detected": len(body_detection["body_parts"]),
                 "total_parts_classified": len(classified_parts),
-                "people_detected": len(body_detection.get("people", []))
+                "people_detected": len(body_detection.get("people", [])),
+                "compatibility_score": compatibility_analysis.get("compatibility_score", 0),
+                "overall_coordination_score": complete_outfit_analysis.get("full_image_analysis", {}).get("coordination_analysis", {}).get("coordination_score", 0)
             }
         }
         
@@ -271,7 +290,12 @@ async def analyze_complete_base64(request_data: Dict):
                     part_image.save(filepath, "JPEG", quality=95)
                     
                     # Classificar a parte extraída
+                    logger.info(f"   Classificando...")
                     classifications, top_prediction = classify_clothing_image(part_image)
+                    
+                    # Detectar cor da peça
+                    logger.info(f"   Detectando cor...")
+                    color_analysis = detect_clothing_color(part_image)
                     
                     # Informações do arquivo salvo
                     saved_parts[part_name] = {
@@ -288,6 +312,7 @@ async def analyze_complete_base64(request_data: Dict):
                     classified_parts[part_name] = {
                         "predictions": classifications,
                         "top_prediction": top_prediction,
+                        "color_analysis": color_analysis,
                         "url": f"/api/v1/static/body-parts/{filename}"
                     }
                     
@@ -298,6 +323,16 @@ async def analyze_complete_base64(request_data: Dict):
                 continue
         
         logger.info(f"✅ Análise completa finalizada. {total_parts_saved} partes salvas.")
+        
+        # Analisar compatibilidade entre as peças detectadas
+        logger.info("🔄 Analisando compatibilidade do outfit...")
+        compatibility_analysis = analyze_outfit_compatibility(classified_parts)
+        logger.info(f"   Score de compatibilidade: {compatibility_analysis.get('compatibility_score', 0)}")
+        
+        # Analisar a imagem completa com CLIP
+        logger.info("🔄 Analisando outfit completo com CLIP...")
+        complete_outfit_analysis = analyze_complete_outfit_image(image, classified_parts)
+        logger.info(f"   Análise completa realizada com sucesso")
         
         # Resultado final
         result = {
@@ -313,10 +348,14 @@ async def analyze_complete_base64(request_data: Dict):
             },
             "saved_parts": saved_parts,
             "classifications": classified_parts,
+            "outfit_compatibility": compatibility_analysis,
+            "complete_outfit_analysis": complete_outfit_analysis,
             "summary": {
                 "total_parts_detected": len(body_detection["body_parts"]),
                 "total_parts_classified": len(classified_parts),
-                "people_detected": len(body_detection.get("people", []))
+                "people_detected": len(body_detection.get("people", [])),
+                "compatibility_score": compatibility_analysis.get("compatibility_score", 0),
+                "overall_coordination_score": complete_outfit_analysis.get("full_image_analysis", {}).get("coordination_analysis", {}).get("coordination_score", 0)
             }
         }
         

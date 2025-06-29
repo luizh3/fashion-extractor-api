@@ -1,0 +1,12 @@
+{
+    "selected_item": {
+        "prompt": "pants",
+        "body_region": "legs",
+        "name": "Calça"
+    },
+    "target_regions": [
+        "torso",
+        "feet"
+    ],
+    "top_k": 3
+}
