@@ -281,6 +281,15 @@ class BodyPartsDetector:
         
         # Extrai a região da imagem
         part_image = pil_image.crop((x_min, y_min, x_max, y_max))
+        # Se for feet, aumentar resolução para pelo menos 224x224
+        if part_name == 'feet':
+            min_size = 224
+            w, h = part_image.size
+            if w < min_size or h < min_size:
+                scale = max(min_size / w, min_size / h)
+                new_w = int(w * scale)
+                new_h = int(h * scale)
+                part_image = part_image.resize((new_w, new_h), Image.LANCZOS)
         return part_image
     
     def set_margin_percentage(self, margin_percentage: float):

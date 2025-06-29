@@ -3,12 +3,15 @@ version: '3.8'
 services:
   clip-api-dev:
     build: .
+    shm_size: '2g'
     ports:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
       - ENVIRONMENT=development
+      - CLIP_WEIGHTS=openai
+      - CLIP_FINETUNED_PATH=checkpoints/clip_finetuned_fashion.pth
     volumes:
       # Mapeia o código local para o container (hot reload)
       - .:/app

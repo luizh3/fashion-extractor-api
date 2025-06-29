@@ -3,11 +3,14 @@ version: '3.8'
 services:
   clip-api:
     build: .
+    shm_size: '2g'
     ports:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
+      - CLIP_WEIGHTS=finetuned
+      - CLIP_FINETUNED_PATH=checkpoints/clip_finetuned_fashion.pth
     volumes:
       # Cache de modelos para evitar download repetido
       - model_cache:/root/.cache
