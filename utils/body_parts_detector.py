@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple, Optional
 class BodyPartsDetector:
     """Classe para detectar partes do corpo usando MediaPipe e YOLO"""
     
-    def __init__(self, margin_percentage: float = 0.15):
+    def __init__(self, margin_percentage: float = 0.05):
         """
         Inicializa os modelos de detecção
         
