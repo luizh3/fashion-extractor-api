@@ -4,6 +4,8 @@ from PIL import Image
 import numpy as np
 from typing import List, Dict, Tuple
 from sklearn.metrics.pairwise import cosine_similarity
+import re
+from PIL import ImageColor
 
 class CLIPClassifier:
     """Classe para classificação de roupas usando modelo CLIP"""
@@ -50,7 +52,12 @@ class CLIPClassifier:
             (19, "Luvas", "gloves", "hands"),
             (20, "Cinto", "belt", "waist"),
             (21, "Bolsa", "bag", "accessory"),
-            (22, "Mochila", "backpack", "accessory")
+            (22, "Mochila", "backpack", "accessory"),
+            # Categorias para ausência de peça
+            (23, "Sem roupa no torso", "bare torso", "torso"),
+            (24, "Sem roupa nas pernas", "bare legs", "legs"),
+            (25, "Descalço", "bare feet", "feet"),
+            (26, "Cabeça descoberta", "bare head", "head")
         ]
         
         # Extrai apenas os prompts em inglês para o modelo CLIP
@@ -191,55 +198,83 @@ class CLIPClassifier:
         if not classifications:
             raise ValueError("Lista de classificações está vazia")
         
+        top = classifications[0]
+        # Lógica para marcar como vazio se for uma categoria 'bare' ou probabilidade baixa
+        empty_labels = ["bare torso", "bare legs", "bare feet", "bare head"]
+        is_empty = (top["prompt"] in empty_labels) or (top["probability"] < 0.35)
         return {
-            "category": classifications[0]["category"],
-            "name": classifications[0]["name"],
-            "prompt": classifications[0]["prompt"],
-            "body_region": classifications[0]["body_region"],
-            "probability": classifications[0]["probability"],
-            "percentage": classifications[0]["percentage"]
+            "category": top["category"],
+            "name": top["name"],
+            "prompt": top["prompt"],
+            "body_region": top["body_region"],
+            "probability": top["probability"],
+            "percentage": top["percentage"],
+            "is_empty": is_empty
         }
+    
+    def _hex_to_closest_color_name(self, hex_color: str) -> str:
+        """
+        Converte uma cor hexadecimal para o nome da cor mais próxima da lista self.colors
+        """
+        try:
+            rgb = ImageColor.getrgb(hex_color)
+        except Exception:
+            return None
+        # Dicionário de nomes para RGB
+        color_rgb_dict = {
+            color: ImageColor.getrgb(color) if color not in ["navy", "beige", "cream", "maroon", "olive"] else {
+                "navy": (0, 0, 128),
+                "beige": (245, 245, 220),
+                "cream": (255, 253, 208),
+                "maroon": (128, 0, 0),
+                "olive": (128, 128, 0)
+            }[color]
+            for color in self.colors
+        }
+        # Função de distância euclidiana
+        def dist(c1, c2):
+            return sum((a-b)**2 for a, b in zip(c1, c2))
+        closest = min(self.colors, key=lambda c: dist(rgb, color_rgb_dict[c]))
+        return closest
     
     def get_compatible_items(self, selected_item: Dict, target_regions: List[str] = None, 
                            top_k: int = 5) -> Dict[str, List[Dict]]:
         """
-        Encontra itens compatíveis com base na peça selecionada
-        
-        Args:
-            selected_item: Item selecionado (deve ter 'prompt', 'body_region' e opcionalmente 'color')
-            target_regions: Regiões do corpo para buscar (ex: ['torso', 'feet'])
-            top_k: Número de sugestões por região
-            
-        Returns:
-            Dicionário com sugestões por região
+        Encontra itens compatíveis com base na peça selecionada (permitindo prompt livre)
         """
         if self.text_embeddings is None:
             raise RuntimeError("Embeddings de texto não foram computados. Chame load_model() primeiro.")
-        
+
         # Encontrar índice do item selecionado
         selected_idx = None
         for i, (_, _, prompt_en, _) in enumerate(self.categories):
             if prompt_en == selected_item["prompt"]:
                 selected_idx = i
                 break
-        
+
+        # Se não encontrou, gerar embedding do prompt livre
         if selected_idx is None:
-            raise ValueError(f"Item '{selected_item['prompt']}' não encontrado nas categorias")
-        
-        # Embedding do item selecionado
-        selected_embedding = self.text_embeddings[selected_idx].reshape(1, -1)
-        
+            import clip
+            prompt_text = selected_item["prompt"]
+            text = clip.tokenize([prompt_text]).to(self.device)
+            with torch.no_grad():
+                prompt_embedding = self.model.encode_text(text).cpu().numpy()[0]
+            selected_embedding = prompt_embedding.reshape(1, -1)
+        else:
+            selected_embedding = self.text_embeddings[selected_idx].reshape(1, -1)
+
         # Se uma cor foi especificada no selected_item, combinar com o embedding da cor
         color = selected_item.get("color")
+        # Se vier em hexadecimal, converter para nome
+        if color and isinstance(color, str) and re.match(r"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$", color):
+            color = self._hex_to_closest_color_name(color)
         if color and color.lower() in self.colors:
             color_idx = self.colors.index(color.lower())
             color_embedding = self.color_embeddings[color_idx].reshape(1, -1)
-            
-            # Combinar embeddings (média ponderada: 70% item + 30% cor)
             combined_embedding = 0.7 * selected_embedding + 0.3 * color_embedding
         else:
             combined_embedding = selected_embedding
-        
+
         # Calcular similaridade com todos os outros itens
         similarities = cosine_similarity(combined_embedding, self.text_embeddings)[0]
         
@@ -248,18 +283,16 @@ class CLIPClassifier:
         if color and color.lower() in self.colors:
             # Calcular similaridade entre a cor selecionada e outras cores
             color_similarities = cosine_similarity(color_embedding, self.color_embeddings)[0]
-            
             # Encontrar cores mais compatíveis (excluindo a própria cor)
             color_indices = [(i, sim) for i, sim in enumerate(color_similarities) if i != color_idx]
             color_indices.sort(key=lambda x: x[1], reverse=True)
-            
-            # Pegar as top 5 cores mais compatíveis
+            # Pegar as top 3 cores mais compatíveis
             compatible_colors = [
                 {
                     "color": self.colors[idx],
                     "similarity": float(sim)
                 }
-                for idx, sim in color_indices[:5]
+                for idx, sim in color_indices[:3]
             ]
         
         # Filtrar por regiões do corpo se especificado
@@ -328,6 +361,10 @@ class CLIPClassifier:
         if self.color_embeddings is None:
             raise RuntimeError("Embeddings de cores não foram computados. Chame load_model() primeiro.")
         
+        # Se vier em hexadecimal, converter para nome
+        if color and isinstance(color, str) and re.match(r"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$", color):
+            color = self._hex_to_closest_color_name(color)
+        
         if color.lower() not in self.colors:
             raise ValueError(f"Cor '{color}' não está disponível. Cores disponíveis: {self.colors}")
         
@@ -377,31 +414,36 @@ class CLIPClassifier:
     
     def get_outfit_suggestions(self, selected_items: List[Dict], top_k: int = 3) -> Dict[str, List[Dict]]:
         """
-        Sugere um outfit completo baseado nos itens selecionados
-        
-        Args:
-            selected_items: Lista de itens já selecionados
-            top_k: Número de sugestões por região
-            
-        Returns:
-            Dicionário com sugestões para completar o outfit
+        Sugere um outfit completo baseado nos itens selecionados, considerando cor se informada
         """
-        # Definir regiões principais para um outfit
         main_regions = ["torso", "legs", "feet"]
-        
-        # Encontrar regiões que ainda precisam ser preenchidas
         selected_regions = {item["body_region"] for item in selected_items}
         missing_regions = [region for region in main_regions if region not in selected_regions]
-        
+
         if not missing_regions:
             return {"message": "Outfit já está completo!"}
-        
-        # Usar o item com maior similaridade como referência
-        best_item = max(selected_items, key=lambda x: x.get("probability", 0))
-        
-        # Buscar itens compatíveis para as regiões faltantes
-        suggestions = self.get_compatible_items(best_item, missing_regions, top_k)
-        
+
+        # Montar um dicionário de cor por região, se houver
+        color_by_region = {item["body_region"]: item.get("color") for item in selected_items if item.get("color")}
+
+        suggestions = {}
+        for region in missing_regions:
+            # Se o usuário informou cor para essa região, sugerir apenas itens dessa cor
+            color = color_by_region.get(region)
+            if color:
+                # Buscar sugestões de itens dessa cor para a região
+                region_suggestions = self.get_color_compatibility(color, [region], top_k).get(region, [])
+                # Adicionar campo 'color' explícito na sugestão
+                for s in region_suggestions:
+                    s["color"] = color
+                suggestions[region] = region_suggestions
+            else:
+                # Buscar sugestões normalmente para a região
+                # Usar o item de maior probabilidade como referência
+                best_item = max(selected_items, key=lambda x: x.get("probability", 0))
+                region_suggestions = self.get_compatible_items(best_item, [region], top_k).get(region, [])
+                suggestions[region] = region_suggestions
+
         return {
             "selected_items": selected_items,
             "missing_regions": missing_regions,

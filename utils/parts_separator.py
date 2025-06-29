@@ -45,11 +45,22 @@ def main(image_path):
                    mp_pose.PoseLandmark.RIGHT_HEEL,
                    mp_pose.PoseLandmark.LEFT_FOOT_INDEX,
                    mp_pose.PoseLandmark.RIGHT_FOOT_INDEX]
+    # Pontos para a cabeça
+    head_points = [
+        mp_pose.PoseLandmark.NOSE,
+        mp_pose.PoseLandmark.LEFT_EYE,
+        mp_pose.PoseLandmark.RIGHT_EYE,
+        mp_pose.PoseLandmark.LEFT_EAR,
+        mp_pose.PoseLandmark.RIGHT_EAR,
+        mp_pose.PoseLandmark.MOUTH_LEFT,
+        mp_pose.PoseLandmark.MOUTH_RIGHT
+    ]
 
     # Calcula bounding boxes
     torso_box = get_bounding_box(landmarks, w, h, torso_points)
     legs_box = get_bounding_box(landmarks, w, h, legs_points)
     feet_box = get_bounding_box(landmarks, w, h, feet_points)
+    head_box = get_bounding_box(landmarks, w, h, head_points)
 
     # 2) Detecta pessoas com YOLOv8
     results_yolo = model(image_path)
@@ -64,6 +75,8 @@ def main(image_path):
     # Mostra imagem com boxes
     img_show = image.copy()
     # Desenha boxes do MediaPipe (partes do corpo)
+    cv2.rectangle(img_show, (head_box[0], head_box[1]), (head_box[2], head_box[3]), (128, 0, 128), 2)
+    cv2.putText(img_show, "Cabeça", (head_box[0], head_box[1]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (128,0,128), 2)
     cv2.rectangle(img_show, (torso_box[0], torso_box[1]), (torso_box[2], torso_box[3]), (0, 255, 0), 2)
     cv2.putText(img_show, "Torso", (torso_box[0], torso_box[1]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
     cv2.rectangle(img_show, (legs_box[0], legs_box[1]), (legs_box[2], legs_box[3]), (255, 0, 0), 2)

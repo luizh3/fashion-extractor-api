@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple, Optional
 class BodyPartsDetector:
     """Classe para detectar partes do corpo usando MediaPipe e YOLO"""
     
-    def __init__(self, margin_percentage: float = 0.30):
+    def __init__(self, margin_percentage: float = 0.15):
         """
         Inicializa os modelos de detecção
         
@@ -51,6 +51,16 @@ class BodyPartsDetector:
             self.mp_pose.PoseLandmark.RIGHT_HEEL,
             self.mp_pose.PoseLandmark.LEFT_FOOT_INDEX,
             self.mp_pose.PoseLandmark.RIGHT_FOOT_INDEX
+        ]
+        # Pontos para a cabeça
+        self.head_points = [
+            self.mp_pose.PoseLandmark.NOSE,
+            self.mp_pose.PoseLandmark.LEFT_EYE,
+            self.mp_pose.PoseLandmark.RIGHT_EYE,
+            self.mp_pose.PoseLandmark.LEFT_EAR,
+            self.mp_pose.PoseLandmark.RIGHT_EAR,
+            self.mp_pose.PoseLandmark.MOUTH_LEFT,
+            self.mp_pose.PoseLandmark.MOUTH_RIGHT
         ]
     
     def _get_bounding_box_with_margin(self, landmarks, image_width: int, image_height: int, points: List) -> Tuple[int, int, int, int]:
@@ -159,7 +169,33 @@ class BodyPartsDetector:
         # Calcula bounding boxes das partes do corpo COM margem
         torso_box = self._get_bounding_box_with_margin(landmarks, w, h, self.torso_points)
         legs_box = self._get_bounding_box_with_margin(landmarks, w, h, self.legs_points)
+        # Expande legs_box lateralmente
+        x_min_l, y_min_l, x_max_l, y_max_l = legs_box
+        legs_width = x_max_l - x_min_l
+        expand_ratio_legs = 0.3  # 30% para cada lado
+        x_min_expanded = max(0, int(x_min_l - legs_width * expand_ratio_legs))
+        x_max_expanded = min(w, int(x_max_l + legs_width * expand_ratio_legs))
+        legs_box = (x_min_expanded, y_min_l, x_max_expanded, y_max_l)
         feet_box = self._get_bounding_box_with_margin(landmarks, w, h, self.feet_points)
+        # Expande feet_box para os lados e para cima, além de para baixo
+        x_min_f, y_min_f, x_max_f, y_max_f = feet_box
+        feet_width = x_max_f - x_min_f
+        feet_height = y_max_f - y_min_f
+        expand_ratio_w = 0.3  # 30% para cada lado
+        expand_ratio_h_up = 0.2  # 20% para cima
+        x_min_expanded = max(0, int(x_min_f - feet_width * expand_ratio_w))
+        x_max_expanded = min(w, int(x_max_f + feet_width * expand_ratio_w))
+        y_min_expanded = max(0, int(y_min_f - feet_height * expand_ratio_h_up))
+        # y_max_expanded já foi calculado para baixo
+        feet_box = (x_min_expanded, y_min_expanded, x_max_expanded, y_max_f)
+        head_box = self._get_bounding_box_with_margin(landmarks, w, h, self.head_points)
+        
+        # Expande head_box para cima para incluir o cabelo
+        x_min, y_min, x_max, y_max = head_box
+        head_height = y_max - y_min
+        expand_ratio = 0.5  # 50% para cima
+        y_min_expanded = max(0, int(y_min - head_height * expand_ratio))
+        head_box = (x_min, y_min_expanded, x_max, y_max)
         
         # 2) Detecta pessoas com YOLOv8 (usa a imagem RGB)
         results_yolo = self.yolo_model(image_rgb)
@@ -184,6 +220,10 @@ class BodyPartsDetector:
             "feet": {
                 "bbox": feet_box,
                 "area": (feet_box[2] - feet_box[0]) * (feet_box[3] - feet_box[1])
+            },
+            "head": {
+                "bbox": head_box,
+                "area": (head_box[2] - head_box[0]) * (head_box[3] - head_box[1])
             }
         }
         
@@ -251,6 +291,34 @@ class BodyPartsDetector:
             margin_percentage: Percentual de margem (0.1 = 10%, 0.2 = 20%, etc.)
         """
         self.margin_percentage = max(0.0, min(1.0, margin_percentage))  # Limita entre 0% e 100%
+
+    def save_body_parts_visualization(self, pil_image: Image.Image, detection_result: Dict, save_path: str):
+        """
+        Salva uma imagem com as bounding boxes das partes do corpo desenhadas.
+
+        Args:
+            pil_image: Imagem PIL original
+            detection_result: Resultado de detect_from_pil (com bounding boxes)
+            save_path: Caminho para salvar a imagem (ex: 'static/body_parts/resultado.jpg')
+        """
+        import cv2
+        import numpy as np
+        # Converte PIL para numpy (BGR para OpenCV)
+        image_np = np.array(pil_image)
+        image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+
+        colors = {
+            "torso": (0, 255, 0),
+            "legs": (255, 0, 0),
+            "feet": (0, 0, 255)
+        }
+        for part, info in detection_result.get("body_parts", {}).items():
+            x_min, y_min, x_max, y_max = info["bbox"]
+            color = colors.get(part, (255, 255, 0))
+            cv2.rectangle(image_bgr, (x_min, y_min), (x_max, y_max), color, 2)
+            cv2.putText(image_bgr, part, (x_min, max(y_min-10, 0)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
+        cv2.imwrite(save_path, image_bgr)
 
 # Instância global do detector
 detector = BodyPartsDetector()

@@ -161,6 +161,17 @@ async def analyze_complete(file: UploadFile = File(...)):
         complete_outfit_analysis = analyze_complete_outfit_image(image, classified_parts)
         logger.info(f"   Análise completa realizada com sucesso")
         
+        # Salvar visualização das partes do corpo na imagem original
+        vis_filename = f"bodyparts_{session_id}_{timestamp}.jpg"
+        vis_filepath = os.path.join(BODY_PARTS_DIR, vis_filename)
+        try:
+            from utils.body_parts_detector import detector
+            detector.save_body_parts_visualization(image, body_detection, vis_filepath)
+            vis_url = f"/api/v1/static/body-parts/{vis_filename}"
+        except Exception as e:
+            logger.error(f"Erro ao salvar visualização das partes do corpo: {e}")
+            vis_url = None
+        
         # Resultado final
         result = {
             "success": True,
@@ -179,6 +190,7 @@ async def analyze_complete(file: UploadFile = File(...)):
             "classifications": classified_parts,
             "outfit_compatibility": compatibility_analysis,
             "complete_outfit_analysis": complete_outfit_analysis,
+            "body_parts_visualization_url": vis_url,
             "summary": {
                 "total_parts_detected": len(body_detection["body_parts"]),
                 "total_parts_classified": len(classified_parts),
@@ -334,6 +346,17 @@ async def analyze_complete_base64(request_data: Dict):
         complete_outfit_analysis = analyze_complete_outfit_image(image, classified_parts)
         logger.info(f"   Análise completa realizada com sucesso")
         
+        # Salvar visualização das partes do corpo na imagem original
+        vis_filename = f"bodyparts_{session_id}_{timestamp}.jpg"
+        vis_filepath = os.path.join(BODY_PARTS_DIR, vis_filename)
+        try:
+            from utils.body_parts_detector import detector
+            detector.save_body_parts_visualization(image, body_detection, vis_filepath)
+            vis_url = f"/api/v1/static/body-parts/{vis_filename}"
+        except Exception as e:
+            logger.error(f"Erro ao salvar visualização das partes do corpo: {e}")
+            vis_url = None
+        
         # Resultado final
         result = {
             "success": True,
@@ -350,6 +373,7 @@ async def analyze_complete_base64(request_data: Dict):
             "classifications": classified_parts,
             "outfit_compatibility": compatibility_analysis,
             "complete_outfit_analysis": complete_outfit_analysis,
+            "body_parts_visualization_url": vis_url,
             "summary": {
                 "total_parts_detected": len(body_detection["body_parts"]),
                 "total_parts_classified": len(classified_parts),
