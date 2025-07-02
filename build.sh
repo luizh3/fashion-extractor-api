@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Script para build e execução da API CLIP
-echo "🚀 Iniciando build da API CLIP & Body Parts..."
+# Script para build e execução da API CLIP & Body Parts...
+echo "Iniciando build da API CLIP & Body Parts..."
 
 # Cores para output
 RED='\033[0;31m'
@@ -64,24 +64,24 @@ print_status "Iniciando container..."
 if $COMPOSE_CMD up -d; then
     print_success "Container iniciado com sucesso!"
     echo ""
-    print_status "📋 Informações da API:"
-    echo "   🌐 URL: http://localhost:8000"
-    echo "   📚 Docs: http://localhost:8000/docs"
-    echo "   ❤️  Health: http://localhost:8000/health"
+    print_status "Informações da API:"
+    echo "   URL: http://localhost:8000"
+    echo "   Docs: http://localhost:8000/docs"
+    echo "   Health: http://localhost:8000/health"
     echo ""
-    print_status "📊 Para ver os logs:"
+    print_status "Para ver os logs:"
     echo "   $COMPOSE_CMD logs -f clip-api"
     echo ""
-    print_status "🛑 Para parar:"
+    print_status "Para parar:"
     echo "   $COMPOSE_CMD down"
     echo ""
-    print_warning "⏳ Aguarde alguns segundos para os modelos carregarem..."
+    print_warning "Aguarde alguns segundos para os modelos carregarem..."
     print_status "Verificando status da API..."
     
     # Aguardar API ficar pronta
     for i in {1..30}; do
         if curl -s http://localhost:8000/health > /dev/null 2>&1; then
-            print_success "API está pronta! 🎉"
+            print_success "API está pronta!"
             break
         fi
         if [ $i -eq 30 ]; then

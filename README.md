@@ -22,7 +22,6 @@ Uma API REST para classificação de roupas e detecção de partes do corpo usan
 ## 📋 Pré-requisitos
 
 - Python 3.8+
-- CUDA (opcional, para aceleração GPU)
 - Docker (opcional, para execução em container)
 
 ## 🛠️ Instalação
@@ -655,10 +654,10 @@ print("Avaliação:", result["outfit_compatibility"]["outfit_rating"]["level"])
 
 ```bash
 # Testar análise de compatibilidade
-python test_outfit_compatibility.py
+# (Arquivo removido)
 
 # Testar sugestões contextuais
-python test_contextual_suggestions.py
+# (Arquivo removido)
 ```
 
 **Funcionalidades do teste:**
@@ -668,25 +667,6 @@ python test_contextual_suggestions.py
 - ✅ Análise de compatibilidade entre peças
 - ✅ Score geral do outfit
 - ✅ Sugestões contextuais inteligentes (baseadas no CLIP)
-
-### 8. 🧠 Sugestões Contextuais Inteligentes
-
-O sistema agora gera sugestões **contextuais e inteligentes** usando o CLIP, em vez de sugestões fixas:
-
-#### **Antes (Sugestões Fixas):**
-- ❌ "Adicionar uma terceira peça pode melhorar o conjunto"
-- ❌ "O outfit está completo! Considere acessórios para complementar"
-
-#### **Agora (Sugestões Contextuais):**
-- ✅ "Adicionar um Sapatos pode completar o look" (quando faltam calçados)
-- ✅ "Um Cinto pode complementar o outfit" (para outfits formais)
-- ✅ "Um Boné pode complementar o outfit" (para outfits casuais)
-
-#### **Como funciona:**
-1. **Análise de Contexto**: Identifica peças detectadas e estilo
-2. **Compatibilidade CLIP**: Calcula similaridade entre peças existentes e sugestões
-3. **Sugestões Inteligentes**: Prioriza itens mais compatíveis semanticamente
-4. **Adaptação ao Estilo**: Diferencia entre formal e casual
 
 ## 🎨 Cores Disponíveis
 
