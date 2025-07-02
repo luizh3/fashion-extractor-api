@@ -167,12 +167,19 @@ class BodyPartsDetector:
         landmarks = results.pose_landmarks.landmark
         
         # Calcula bounding boxes das partes do corpo COM margem
-        torso_box = self._get_bounding_box_with_margin(landmarks, w, h, self.torso_points)
+        # Torso: expande lateralmente
+        torso_box_raw = self._get_bounding_box_with_margin(landmarks, w, h, self.torso_points)
+        x_min_t, y_min_t, x_max_t, y_max_t = torso_box_raw
+        torso_width = x_max_t - x_min_t
+        expand_ratio_torso = 0.45  # 45% para cada lado (aumentado)
+        x_min_expanded_t = max(0, int(x_min_t - torso_width * expand_ratio_torso))
+        x_max_expanded_t = min(w, int(x_max_t + torso_width * expand_ratio_torso))
+        torso_box = (x_min_expanded_t, y_min_t, x_max_expanded_t, y_max_t)
         legs_box = self._get_bounding_box_with_margin(landmarks, w, h, self.legs_points)
         # Expande legs_box lateralmente
         x_min_l, y_min_l, x_max_l, y_max_l = legs_box
         legs_width = x_max_l - x_min_l
-        expand_ratio_legs = 0.3  # 30% para cada lado
+        expand_ratio_legs = 0.45  # 45% para cada lado (aumentado)
         x_min_expanded = max(0, int(x_min_l - legs_width * expand_ratio_legs))
         x_max_expanded = min(w, int(x_max_l + legs_width * expand_ratio_legs))
         legs_box = (x_min_expanded, y_min_l, x_max_expanded, y_max_l)
@@ -181,8 +188,8 @@ class BodyPartsDetector:
         x_min_f, y_min_f, x_max_f, y_max_f = feet_box
         feet_width = x_max_f - x_min_f
         feet_height = y_max_f - y_min_f
-        expand_ratio_w = 0.3  # 30% para cada lado
-        expand_ratio_h_up = 0.2  # 20% para cima
+        expand_ratio_w = 0.45  # 45% para cada lado
+        expand_ratio_h_up = 0.35  # 35% para cima
         x_min_expanded = max(0, int(x_min_f - feet_width * expand_ratio_w))
         x_max_expanded = min(w, int(x_max_f + feet_width * expand_ratio_w))
         y_min_expanded = max(0, int(y_min_f - feet_height * expand_ratio_h_up))
