@@ -141,13 +141,14 @@ class CLIPClassifier:
         else:
             return image
     
-    def classify_image(self, image: Image.Image) -> List[Dict[str, any]]:
+    def classify_image(self, image: Image.Image, body_region: str = None) -> List[Dict[str, any]]:
         """
         Classifica uma imagem de roupa
         
         Args:
             image: Imagem PIL para classificar
-            
+            body_region: Região do corpo (opcional: 'torso', 'legs', 'feet', etc.)
+        
         Returns:
             Lista de classificações ordenadas por probabilidade
         """
@@ -157,9 +158,22 @@ class CLIPClassifier:
         # Garante que a imagem seja RGB
         image_rgb = self._ensure_rgb_image(image)
         
+        # Filtrar categorias relevantes para a região, se especificada
+        if body_region is not None:
+            filtered = [(i, cat) for i, cat in enumerate(self.categories) if cat[3] == body_region]
+            if not filtered:
+                # fallback: se não houver categorias para a região, usar todas
+                filtered = list(enumerate(self.categories))
+            filtered_indices, filtered_categories = zip(*filtered)
+            filtered_classes = [cat[2] for cat in filtered_categories]
+        else:
+            filtered_indices = list(range(len(self.categories)))
+            filtered_classes = self.classes
+            filtered_categories = self.categories
+        
         # Pré-processamento da imagem
         processed_image = self.preprocess(image_rgb).unsqueeze(0).to(self.device)
-        text = clip.tokenize(self.classes).to(self.device)
+        text = clip.tokenize(filtered_classes).to(self.device)
         
         # Inferência
         with torch.no_grad():
@@ -170,13 +184,14 @@ class CLIPClassifier:
         
         # Preparar resultado com categorias padronizadas
         classifications = []
-        for i, (category_id, name_pt, prompt_en, body_region) in enumerate(self.categories):
-            prob = probs[i]
+        for idx, prob in enumerate(probs):
+            cat_idx = filtered_indices[idx]
+            category_id, name_pt, prompt_en, body_region_cat = self.categories[cat_idx]
             classifications.append({
                 "category": category_id,
                 "name": name_pt,
                 "prompt": prompt_en,
-                "body_region": body_region,
+                "body_region": body_region_cat,
                 "probability": float(prob),
                 "percentage": f"{prob:.2%}"
             })
@@ -1071,17 +1086,18 @@ def load_classifier():
     """Função para carregar o classificador global"""
     classifier.load_model()
 
-def classify_clothing_image(image: Image.Image) -> Tuple[List[Dict], Dict]:
+def classify_clothing_image(image: Image.Image, body_region: str = None) -> Tuple[List[Dict], Dict]:
     """
     Função utilitária para classificar uma imagem de roupa
     
     Args:
         image: Imagem PIL para classificar
-        
+        body_region: Região do corpo (opcional)
+    
     Returns:
         Tupla com (classificações, predição_principal)
     """
-    classifications = classifier.classify_image(image)
+    classifications = classifier.classify_image(image, body_region)
     top_prediction = classifier.get_top_prediction(classifications)
     return classifications, top_prediction
 

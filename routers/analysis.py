@@ -62,7 +62,7 @@ async def analyze_complete(file: UploadFile = File(...)):
                     filename = f"{part_name}_{session_id}_{timestamp}.jpg"
                     filepath = os.path.join(BODY_PARTS_DIR, filename)
                     part_image.save(filepath, "JPEG", quality=95)
-                    classifications, top_prediction = classify_clothing_image(part_image)
+                    classifications, top_prediction = classify_clothing_image(part_image, part_name)
                     color_analysis = detect_clothing_color(part_image)
                     saved_parts[part_name] = {
                         "filename": filename,
@@ -212,7 +212,7 @@ async def analyze_complete_base64(request_data: Dict):
                     
                     # Classificar a parte extraída
                     logger.info(f"   Classificando...")
-                    classifications, top_prediction = classify_clothing_image(part_image)
+                    classifications, top_prediction = classify_clothing_image(part_image, part_name)
                     
                     # Detectar cor da peça
                     logger.info(f"   Detectando cor...")
