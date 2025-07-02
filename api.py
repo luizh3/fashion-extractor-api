@@ -72,7 +72,7 @@ async def log_requests(request: Request, call_next):
     """Middleware para logar detalhes das requisições e capturar erros de parsing"""
     
     # Log da requisição
-    logger.info(f"📥 {request.method} {request.url}")
+    logger.info(f"{request.method} {request.url}")
     logger.info(f"   Headers: {dict(request.headers)}")
     
     # Capturar o body da requisição para debugging
@@ -101,19 +101,19 @@ async def log_requests(request: Request, call_next):
                         body_json = json.loads(body_content)
                         logger.info(f"   Body (JSON): {json.dumps(body_json, indent=2)[:500]}...")
                     except json.JSONDecodeError as e:
-                        logger.error(f"   ❌ Erro ao parsear JSON: {e}")
+                        logger.error(f"Erro ao parsear JSON: {e}")
                         logger.error(f"   Body inválido: {body_content}")
                     
     except Exception as e:
-        logger.error(f"   ❌ Erro ao ler body: {e}")
+        logger.error(f"Erro ao ler body: {e}")
     
     # Processar a requisição
     try:
         response = await call_next(request)
-        logger.info(f"📤 {request.method} {request.url} - Status: {response.status_code}")
+        logger.info(f"{request.method} {request.url} - Status: {response.status_code}")
         return response
     except Exception as e:
-        logger.error(f"   ❌ Erro na requisição: {e}")
+        logger.error(f"Erro na requisição: {e}")
         return JSONResponse(
             status_code=500,
             content={
@@ -188,7 +188,7 @@ async def health_check():
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handler para erros de validação de requisição"""
-    logger.error(f"❌ Erro de validação na requisição: {exc}")
+    logger.error(f"Erro de validação na requisição: {exc}")
     logger.error(f"   URL: {request.url}")
     logger.error(f"   Method: {request.method}")
     logger.error(f"   Headers: {dict(request.headers)}")
@@ -228,7 +228,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     """Handler para erros HTTP"""
-    logger.error(f"❌ Erro HTTP {exc.status_code}: {exc.detail}")
+    logger.error(f"Erro HTTP {exc.status_code}: {exc.detail}")
     logger.error(f"   URL: {request.url}")
     logger.error(f"   Method: {request.method}")
     

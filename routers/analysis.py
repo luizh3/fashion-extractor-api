@@ -138,50 +138,50 @@ async def analyze_complete_base64(request_data: Dict):
     Returns:
         JSON com resultados de classificação para cada parte extraída
     """
-    logger.info("📥 Iniciando análise completa via base64")
+    logger.info("Iniciando análise completa via base64")
     
     try:
         # Validar dados da requisição
         if "image_base64" not in request_data:
-            logger.error("❌ Campo 'image_base64' não encontrado")
+            logger.error("Campo 'image_base64' não encontrado")
             raise HTTPException(status_code=400, detail="Campo 'image_base64' é obrigatório")
         
         image_base64 = request_data["image_base64"]
-        logger.info(f"   Tamanho do base64: {len(image_base64)} caracteres")
+        logger.info(f"Tamanho do base64: {len(image_base64)} caracteres")
         
         # Remover prefixo data:image/...;base64, se presente
         if image_base64.startswith('data:image/'):
             image_base64 = image_base64.split(',')[1]
-            logger.info("   Prefixo data: removido")
+            logger.info("Prefixo data: removido")
         
         # Decodificar base64
-        logger.info("🔄 Decodificando base64...")
+        logger.info("Decodificando base64...")
         image_data = base64.b64decode(image_base64)
-        logger.info(f"   Tamanho decodificado: {len(image_data)} bytes")
+        logger.info(f"Tamanho decodificado: {len(image_data)} bytes")
         
         # Abrir imagem
-        logger.info("🔄 Abrindo imagem...")
+        logger.info("Abrindo imagem...")
         image = Image.open(io.BytesIO(image_data))
-        logger.info(f"   Dimensões: {image.size}")
-        logger.info(f"   Modo: {image.mode}")
+        logger.info(f"Dimensões: {image.size}")
+        logger.info(f"Modo: {image.mode}")
         
         # Garantir que a imagem seja RGB
-        logger.info("🔄 Convertendo para RGB...")
+        logger.info("Convertendo para RGB...")
         image = ensure_rgb_image(image)
         
         # Detectar partes do corpo
-        logger.info("🔄 Detectando partes do corpo...")
+        logger.info("Detectando partes do corpo...")
         body_detection = detect_body_parts_from_image(image)
         
         if not body_detection["success"]:
-            logger.error(f"❌ Falha na detecção: {body_detection['error']}")
+            logger.error(f"Falha na detecção: {body_detection['error']}")
             return JSONResponse(content={
                 "success": False,
                 "error": body_detection["error"],
                 "image_size": len(image_data)
             })
         
-        logger.info(f"✅ Partes detectadas: {list(body_detection['body_parts'].keys())}")
+        logger.info(f"Partes detectadas: {list(body_detection['body_parts'].keys())}")
         
         # Gerar session ID único
         session_id = str(uuid.uuid4())[:8]
@@ -194,28 +194,28 @@ async def analyze_complete_base64(request_data: Dict):
         
         for part_name, part_data in body_detection["body_parts"].items():
             try:
-                logger.info(f"🔄 Processando parte: {part_name}")
+                logger.info(f"Processando parte: {part_name}")
                 
                 # Extrair parte do corpo
                 part_image = get_body_part_image(image, part_name)
                 
                 if part_image is not None:
-                    logger.info(f"   Dimensões da parte: {part_image.size}")
+                    logger.info(f"Dimensões da parte: {part_image.size}")
                     
                     # Gerar nome do arquivo
                     filename = f"{part_name}_{session_id}_{timestamp}.jpg"
                     filepath = os.path.join(BODY_PARTS_DIR, filename)
                     
                     # Salvar imagem
-                    logger.info(f"   Salvando em: {filepath}")
+                    logger.info(f"Salvando em: {filepath}")
                     part_image.save(filepath, "JPEG", quality=95)
                     
                     # Classificar a parte extraída
-                    logger.info(f"   Classificando...")
+                    logger.info(f"Classificando...")
                     classifications, top_prediction = classify_clothing_image(part_image, part_name)
                     
                     # Detectar cor da peça
-                    logger.info(f"   Detectando cor...")
+                    logger.info(f"Detectando cor...")
                     color_analysis = detect_clothing_color(part_image)
                     
                     # Informações do arquivo salvo
@@ -238,23 +238,23 @@ async def analyze_complete_base64(request_data: Dict):
                     }
                     
                     total_parts_saved += 1
-                    logger.info(f"   ✅ {part_name} processado com sucesso")
+                    logger.info(f"{part_name} processado com sucesso")
                     
             except Exception as e:
-                logger.error(f"❌ Erro ao processar parte {part_name}: {e}")
+                logger.error(f"Erro ao processar parte {part_name}: {e}")
                 continue
         
-        logger.info(f"✅ Análise completa finalizada. {total_parts_saved} partes salvas.")
+        logger.info(f"Análise completa finalizada. {total_parts_saved} partes salvas.")
         
         # Analisar compatibilidade entre as peças detectadas
-        logger.info("🔄 Analisando compatibilidade do outfit...")
+        logger.info("Analisando compatibilidade do outfit...")
         compatibility_analysis = analyze_outfit_compatibility(classified_parts)
-        logger.info(f"   Score de compatibilidade: {compatibility_analysis.get('compatibility_score', 0)}")
+        logger.info(f"Score de compatibilidade: {compatibility_analysis.get('compatibility_score', 0)}")
         
         # Analisar a imagem completa com CLIP
-        logger.info("🔄 Analisando outfit completo com CLIP...")
+        logger.info("Analisando outfit completo com CLIP...")
         complete_outfit_analysis = analyze_complete_outfit_image(image, classified_parts)
-        logger.info(f"   Análise completa realizada com sucesso")
+        logger.info(f"Análise completa realizada com sucesso")
         
         # Salvar visualização das partes do corpo na imagem original
         vis_filename = f"bodyparts_{session_id}_{timestamp}.jpg"
@@ -294,14 +294,14 @@ async def analyze_complete_base64(request_data: Dict):
         }
         
         logger.info("=" * 50)
-        logger.info("📤 FIM - Análise Completa (SUCESSO)")
+        logger.info("FIM - Análise Completa (SUCESSO)")
         logger.info("=" * 50)
         
         return JSONResponse(content=result)
         
     except Exception as e:
         logger.error("=" * 50)
-        logger.error("❌ ERRO - Análise Completa")
+        logger.error("ERRO - Análise Completa")
         logger.error("=" * 50)
         logger.error(f"Tipo de erro: {type(e).__name__}")
         logger.error(f"Mensagem: {str(e)}")
